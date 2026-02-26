@@ -1,18 +1,40 @@
 import {
   PanelSection,
+  PanelSectionRow,
+  Dropdown,
+  TextField,
   staticClasses
 } from "@decky/ui";
 import {
   definePlugin
 } from "@decky/api"
 import { FaDownload } from "react-icons/fa";
+import { useState } from "react";
+
+const CONSOLE_OPTIONS = [
+  { data: "gba", label: "Game Boy Advance" },
+  { data: "nes", label: "Nintendo" },
+];
 
 function Content() {
+  const [selectedOption, setSelectedOption] = useState<any>(CONSOLE_OPTIONS[0]);
+  const [inputValue, setInputValue] = useState("");
+
   return (
     <PanelSection title="ROM Downloader">
-      <div style={{ padding: "20px", textAlign: "center" }}>
-        ROM Downloader is ready!
-      </div>
+      <PanelSectionRow>
+        <Dropdown
+          selectedOption={selectedOption}
+          rgOptions={CONSOLE_OPTIONS}
+          onChange={(option) => setSelectedOption(option)}
+        />
+      </PanelSectionRow>
+      <PanelSectionRow>
+        <TextField
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+        />
+      </PanelSectionRow>
     </PanelSection>
   );
 };
