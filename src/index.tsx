@@ -3,8 +3,7 @@ import {
   PanelSectionRow,
   Dropdown,
   TextField,
-  staticClasses,
-  Spinner
+  staticClasses
 } from "@decky/ui";
 import {
   definePlugin,
@@ -64,7 +63,7 @@ function Content() {
       setIsLoading(true);
       setError(null);
       try {
-        const result = await call("get_rom_list");
+        const result: any = await call("get_rom_list");
         if (result.success) {
           setRomList(result.roms || []);
           setFilteredRomList(result.roms || []);
