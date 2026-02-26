@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(curl:*)",
+      "Bash(npm install)",
+      "Bash(npm run build)",
+      "Bash(npm install:*)",
+      "Bash(pip install:*)",
+      "Bash(npx playwright install:*)",
+      "Bash(npx playwright:*)",
+      "Bash(ls:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run test:e2e:*)",
+      "Bash(timeout 5 npm run dev:*)",
+      "Bash(pkill:*)",
+      "Bash(timeout 10 npm run dev:test:*)",
+      "Bash(git -C /home/kt/dev/emu-downloader remote -v)",
+      "Bash(chmod:*)",
+      "Bash(./deploy.sh:*)",
+      "Bash(unzip:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(VITE_TEST_MODE=true npx playwright test:*)",
+      "Bash(git push:*)",
+      "Bash(node -c:*)",
+      "Bash(git checkout:*)",
+      "Bash(git branch:*)"
+    ]
+  }
+}

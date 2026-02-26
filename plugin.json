@@ -1,0 +1,10 @@
+{
+  "name": "ROM Downloader",
+  "author": "ROM Downloader Contributors",
+  "flags": ["debug"],
+  "api_version": 1,
+  "publish": {
+    "tags": ["roms", "download", "myrient"],
+    "description": "Search and download ROMs from Myrient"
+  }
+}
