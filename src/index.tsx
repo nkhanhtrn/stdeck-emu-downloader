@@ -37,9 +37,8 @@ function saveState<T>(key: string, value: T, property: string) {
 }
 
 function Content() {
-  const [selectedOption, setSelectedOption] = useState<any>(() => {
-    const savedId = getInitialState<string>(LOCAL_STORAGE_KEY_CONSOLE, 'gba', 'value');
-    return CONSOLE_OPTIONS.find(opt => opt.data === savedId) || CONSOLE_OPTIONS[0];
+  const [selectedValue, setSelectedValue] = useState<string>(() => {
+    return getInitialState<string>(LOCAL_STORAGE_KEY_CONSOLE, 'gba', 'value');
   });
   const [inputValue, setInputValue] = useState<string>(() => getInitialState(LOCAL_STORAGE_KEY_INPUT, '', 'value'));
 
@@ -47,10 +46,10 @@ function Content() {
     <PanelSection title="ROM Downloader">
       <PanelSectionRow>
         <Dropdown
-          selectedOption={selectedOption}
+          selectedOption={selectedValue}
           rgOptions={CONSOLE_OPTIONS}
           onChange={(option) => {
-            setSelectedOption(option);
+            setSelectedValue(option.data);
             saveState(LOCAL_STORAGE_KEY_CONSOLE, option.data, 'value');
           }}
         />
