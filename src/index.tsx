@@ -3,13 +3,16 @@ import {
   PanelSectionRow,
   Dropdown,
   TextField,
+  ButtonItem,
   staticClasses
 } from "@decky/ui";
 import {
   definePlugin,
-  call
+  call,
+  openFilePicker,
+  FileSelectionType
 } from "@decky/api"
-import { FaDownload } from "react-icons/fa";
+import { FaDownload, FaFolderOpen } from "react-icons/fa";
 import { useState, useEffect } from "react";
 
 const CONSOLE_OPTIONS = [
@@ -107,14 +110,36 @@ function Content() {
           />
         </PanelSectionRow>
         <PanelSectionRow>
-          <TextField
-            label="Download Folder"
-            value={downloadFolder}
-            onChange={(e) => {
-              setDownloadFolder(e.target.value);
-              saveState(LOCAL_STORAGE_KEY_FOLDER, e.target.value, 'value');
-            }}
-          />
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%' }}>
+            <TextField
+              label="Download Folder"
+              value={downloadFolder}
+              onChange={(e) => {
+                setDownloadFolder(e.target.value);
+                saveState(LOCAL_STORAGE_KEY_FOLDER, e.target.value, 'value');
+              }}
+              style={{ flex: 1 }}
+            />
+            <ButtonItem
+              layout="inline"
+              onClick={async () => {
+                try {
+                  const result = await openFilePicker(
+                    FileSelectionType.FOLDER,
+                    downloadFolder || '/home/deck'
+                  );
+                  if (result.path) {
+                    setDownloadFolder(result.path);
+                    saveState(LOCAL_STORAGE_KEY_FOLDER, result.path, 'value');
+                  }
+                } catch (err) {
+                  console.error('Folder picker error:', err);
+                }
+              }}
+            >
+              <FaFolderOpen />
+            </ButtonItem>
+          </div>
         </PanelSectionRow>
       </PanelSection>
 
