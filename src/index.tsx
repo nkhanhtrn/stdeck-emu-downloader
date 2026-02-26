@@ -16,37 +16,32 @@ const CONSOLE_OPTIONS = [
   { data: "nes", label: "Nintendo" },
 ];
 
-const STORAGE_KEY_CONSOLE = 'console';
-const STORAGE_KEY_INPUT = 'input';
+const LOCAL_STORAGE_KEY_CONSOLE = 'console';
+const LOCAL_STORAGE_KEY_INPUT = 'input';
 
-function getInitialState<T>(key: string, defaultValue: T): T {
+function getInitialState<T>(key: string, defaultValue: T, property: string): T {
   const settingsString = localStorage.getItem(key);
-  console.log(`[getInitialState] ${key}:`, settingsString);
   if (!settingsString) {
-    console.log(`[getInitialState] ${key}: using default`, defaultValue);
     return defaultValue;
   }
   try {
-    const parsed = JSON.parse(settingsString);
-    console.log(`[getInitialState] ${key}: parsed`, parsed);
-    return parsed ?? defaultValue;
-  } catch (e) {
-    console.error(`[getInitialState] ${key}: parse error`, e);
+    const storedSettings = JSON.parse(settingsString);
+    return storedSettings[property] ?? defaultValue;
+  } catch {
     return defaultValue;
   }
 }
 
-function saveState<T>(key: string, value: T) {
-  console.log(`[saveState] ${key}:`, value);
-  localStorage.setItem(key, JSON.stringify(value));
+function saveState<T>(key: string, value: T, property: string) {
+  localStorage.setItem(key, JSON.stringify({ [property]: value }));
 }
 
 function Content() {
   const [selectedOption, setSelectedOption] = useState<any>(() => {
-    const savedId = getInitialState<string>(STORAGE_KEY_CONSOLE, 'gba');
+    const savedId = getInitialState<string>(LOCAL_STORAGE_KEY_CONSOLE, 'gba', 'value');
     return CONSOLE_OPTIONS.find(opt => opt.data === savedId) || CONSOLE_OPTIONS[0];
   });
-  const [inputValue, setInputValue] = useState<string>(() => getInitialState(STORAGE_KEY_INPUT, ''));
+  const [inputValue, setInputValue] = useState<string>(() => getInitialState(LOCAL_STORAGE_KEY_INPUT, '', 'value'));
 
   return (
     <PanelSection title="ROM Downloader">
@@ -56,7 +51,7 @@ function Content() {
           rgOptions={CONSOLE_OPTIONS}
           onChange={(option) => {
             setSelectedOption(option);
-            saveState(STORAGE_KEY_CONSOLE, option.data);
+            saveState(LOCAL_STORAGE_KEY_CONSOLE, option.data, 'value');
           }}
         />
       </PanelSectionRow>
@@ -65,7 +60,7 @@ function Content() {
           value={inputValue}
           onChange={(e) => {
             setInputValue(e.target.value);
-            saveState(STORAGE_KEY_INPUT, e.target.value);
+            saveState(LOCAL_STORAGE_KEY_INPUT, e.target.value, 'value');
           }}
         />
       </PanelSectionRow>
