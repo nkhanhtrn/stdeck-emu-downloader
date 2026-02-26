@@ -21,17 +21,23 @@ const STORAGE_KEY_INPUT = 'input';
 
 function getInitialState<T>(key: string, defaultValue: T): T {
   const settingsString = localStorage.getItem(key);
+  console.log(`[getInitialState] ${key}:`, settingsString);
   if (!settingsString) {
+    console.log(`[getInitialState] ${key}: using default`, defaultValue);
     return defaultValue;
   }
   try {
-    return JSON.parse(settingsString) ?? defaultValue;
-  } catch {
+    const parsed = JSON.parse(settingsString);
+    console.log(`[getInitialState] ${key}: parsed`, parsed);
+    return parsed ?? defaultValue;
+  } catch (e) {
+    console.error(`[getInitialState] ${key}: parse error`, e);
     return defaultValue;
   }
 }
 
 function saveState<T>(key: string, value: T) {
+  console.log(`[saveState] ${key}:`, value);
   localStorage.setItem(key, JSON.stringify(value));
 }
 
