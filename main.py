@@ -2,109 +2,130 @@ import decky
 import requests
 from bs4 import BeautifulSoup
 import os
-import pty
-import select
-import subprocess
-import threading
-import time
-from typing import Dict, Optional
+import asyncio
 
 class SimpleTerminal:
     def __init__(self, terminal_id: str, shell: str = None):
         self.id = terminal_id
-        self.pid = None
-        self.fd = None
-        self.subscribers = []
+        self.process = None
         self.buffer = []
-        self.lock = threading.Lock()
-        self.title = None
-        self.is_running = False
+        self.is_subscribed = False
 
         # Determine shell to use
         if shell is None:
             shell = os.environ.get('SHELL', '/bin/bash')
 
-        # Spawn PTY
-        self.pid, self.fd = pty.fork()
-        if self.pid == 0:
-            # Child process - spawn shell
-            os.execvp(shell, [shell])
-        else:
-            # Parent process
-            self.is_running = True
-            # Start output thread
-            self.output_thread = threading.Thread(target=self._read_output, daemon=True)
-            self.output_thread.start()
+        self.shell = shell
+        self.rows = 24
+        self.cols = 80
 
-    def _read_output(self):
-        """Read output from PTY and send to subscribers"""
-        while self.is_running:
+    async def start(self):
+        """Start the terminal process"""
+        import pty
+        import struct
+        import fcntl
+        import termios
+
+        # Open PTY
+        self.master_fd, self.slave_fd = pty.openpty()
+
+        # Set terminal size
+        winsize = struct.pack("HHHH", self.rows, self.cols, 0, 0)
+        fcntl.ioctl(self.slave_fd, termios.TIOCSWINSZ, winsize)
+
+        # Start shell process
+        self.process = await asyncio.create_subprocess_exec(
+            self.shell,
+            stdin=self.slave_fd,
+            stdout=self.slave_fd,
+            stderr=self.slave_fd,
+            env={
+                "TERM": "xterm-256color",
+                "PWD": os.environ.get("HOME", "/home/deck"),
+                "HOME": os.environ.get("HOME", "/home/deck"),
+                "SHELL": self.shell,
+                "USER": os.environ.get("USER", "deck"),
+            },
+            preexec_fn=os.setsid,
+        )
+
+        # Start reading output
+        asyncio.create_task(self._read_output_loop())
+
+    async def _read_output_loop(self):
+        """Read output from PTY and broadcast to subscribers"""
+        import os
+        while self.process and self.process.returncode is None:
             try:
-                # Check if there's data to read
-                r, _, _ = select.select([self.fd], [], [], 0.1)
-                if r:
-                    try:
-                        data = os.read(self.fd, 4096)
-                        if data:
-                            output = data.decode('utf-8', errors='ignore')
-                            self.buffer.append(output)
-                            # Notify subscribers
-                            for callback in self.subscribers:
-                                try:
-                                    decky.emit_to_client(callback, output)
-                                except:
-                                    pass
-                    except OSError:
-                        break
+                data = await asyncio.to_thread(os.read, self.master_fd, 4096)
+                if data:
+                    output = data.decode('utf-8', errors='ignore')
+                    self.buffer.append(output)
+                    if self.is_subscribed:
+                        await decky.emit(f"terminal_output#{self.id}", output)
             except:
                 break
+            await asyncio.sleep(0.01)
 
     def write(self, data: str):
         """Write input to terminal"""
-        if self.is_running and self.fd is not None:
+        import os
+        if self.master_fd:
             try:
-                os.write(self.fd, data.encode('utf-8'))
+                os.write(self.master_fd, data.encode('utf-8'))
             except:
                 pass
 
-    def get_buffer(self) -> str:
-        """Get current buffer content"""
-        with self.lock:
-            return ''.join(self.buffer)
-
-    def subscribe(self, callback):
-        """Subscribe to terminal output"""
-        if callback not in self.subscribers:
-            self.subscribers.append(callback)
-
-    def unsubscribe(self, callback):
-        """Unsubscribe from terminal output"""
-        if callback in self.subscribers:
-            self.subscribers.remove(callback)
-
-    def resize(self, rows: int, cols: int):
+    async def change_window_size(self, rows: int, cols: int):
         """Resize terminal window"""
-        if self.is_running and self.fd is not None:
+        import struct
+        import fcntl
+        import termios
+
+        self.rows = rows
+        self.cols = cols
+
+        if self.slave_fd:
             try:
-                import fcntl
-                import struct
-                import termios
                 winsize = struct.pack("HHHH", rows, cols, 0, 0)
-                fcntl.ioctl(self.fd, termios.TIOCSWINSZ, winsize)
+                fcntl.ioctl(self.slave_fd, termios.TIOCSWINSZ, winsize)
             except:
                 pass
+
+    async def get_buffer(self):
+        """Get current buffer content"""
+        return ''.join(self.buffer)
+
+    async def send_current_buffer(self):
+        """Send current buffer to frontend"""
+        buffer_content = ''.join(self.buffer)
+        await decky.emit(f"terminal_output#{self.id}", buffer_content)
+
+    def subscribe(self):
+        """Subscribe to terminal output"""
+        self.is_subscribed = True
+
+    def unsubscribe(self):
+        """Unsubscribe from terminal output"""
+        self.is_subscribed = False
 
     def close(self):
         """Close terminal"""
-        self.is_running = False
-        if self.fd is not None:
+        if self.process:
             try:
-                os.close(self.fd)
+                self.process.kill()
             except:
                 pass
-        if self.pid is not None:
+        if hasattr(self, 'master_fd') and self.master_fd:
             try:
-                os.kill(self.pid, 9)
+                import os
+                os.close(self.master_fd)
+            except:
+                pass
+        if hasattr(self, 'slave_fd') and self.slave_fd:
+            try:
+                import os
+                os.close(self.slave_fd)
             except:
                 pass
 
@@ -112,16 +133,15 @@ class SimpleTerminal:
         """Serialize terminal state"""
         return {
             "id": self.id,
-            "pid": self.pid,
-            "is_started": True,
-            "is_completed": not self.is_running,
-            "title": self.title
+            "pid": self.process.pid if self.process else None,
+            "is_started": self.process is not None,
+            "is_completed": self.process and self.process.returncode is not None,
         }
 
 
 class Plugin:
     ROMS_URL = "https://myrient.erista.me/files/No-Intro/Nintendo%20-%20Game%20Boy%20Advance/"
-    terminals: Dict[str, SimpleTerminal] = {}
+    terminals = {}
 
     async def _main(self):
         decky.logger.info("ROM Downloader plugin loaded")
@@ -197,9 +217,10 @@ class Plugin:
             }
 
     # ============= Terminal Methods =============
-    async def create_terminal(self, terminal_id: str = None) -> bool:
+    async def create_terminal(self, terminal_id: str = None):
         """Create a new terminal"""
         if terminal_id is None:
+            import time
             terminal_id = f'term-{int(time.time())}'
 
         if terminal_id in self.terminals:
@@ -207,14 +228,17 @@ class Plugin:
 
         try:
             terminal = SimpleTerminal(terminal_id)
+            await terminal.start()
             self.terminals[terminal_id] = terminal
             decky.logger.info(f"Created terminal: {terminal_id}")
             return True
         except Exception as e:
             decky.logger.error(f"Error creating terminal: {e}")
+            import traceback
+            decky.logger.error(traceback.format_exc())
             return False
 
-    async def get_terminals(self) -> list:
+    async def get_terminals(self):
         """Get list of all terminals"""
         result = []
         for terminal_id, terminal in self.terminals.items():
@@ -229,7 +253,7 @@ class Plugin:
             return terminal.serialize()
         return None
 
-    async def remove_terminal(self, terminal_id: str) -> bool:
+    async def remove_terminal(self, terminal_id: str):
         """Remove a terminal"""
         if terminal_id in self.terminals:
             self.terminals[terminal_id].close()
@@ -247,30 +271,27 @@ class Plugin:
         """Send current buffer to frontend"""
         terminal = self.terminals.get(terminal_id)
         if terminal:
-            buffer_content = terminal.get_buffer()
-            # Send buffer via event
-            decky.emit_to_client(f'terminal_output#{terminal_id}', buffer_content)
+            await terminal.send_current_buffer()
 
     async def subscribe_terminal(self, terminal_id: str):
         """Subscribe to terminal output"""
         terminal = self.terminals.get(terminal_id)
         if terminal:
-            terminal.subscribe(f'terminal_output#{terminal_id}')
+            terminal.subscribe()
 
     async def unsubscribe_terminal(self, terminal_id: str):
         """Unsubscribe from terminal output"""
         terminal = self.terminals.get(terminal_id)
         if terminal:
-            terminal.unsubscribe(f'terminal_output#{terminal_id}')
+            terminal.unsubscribe()
 
     async def change_terminal_window_size(self, terminal_id: str, rows: int, cols: int):
         """Change terminal window size"""
         terminal = self.terminals.get(terminal_id)
         if terminal:
-            terminal.resize(rows, cols)
+            await terminal.change_window_size(rows, cols)
 
     async def set_terminal_title(self, terminal_id: str, title: str):
         """Set terminal title"""
-        terminal = self.terminals.get(terminal_id)
-        if terminal:
-            terminal.title = title
+        # SimpleTerminal doesn't support title tracking yet
+        pass
