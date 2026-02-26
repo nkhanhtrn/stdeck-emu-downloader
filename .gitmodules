@@ -1,3 +1,6 @@
 [submodule "subrepos/volume-boost"]
 	path = subrepos/volume-boost
 	url = https://github.com/saumya-banthia/volume-boost.git
+[submodule "subrepos/sdh-cssloader"]
+	path = subrepos/sdh-cssloader
+	url = https://github.com/DeckThemes/SDH-CssLoader.git
