@@ -1,5 +1,11 @@
 import deckyPlugin from "@decky/rollup";
+import { nodeResolve } from '@rollup/plugin-node-resolve';
 
 export default deckyPlugin({
-  // Add your extra Rollup options here
+  plugins: [
+    nodeResolve({
+      browser: true,
+      preferBuiltins: false
+    })
+  ]
 })

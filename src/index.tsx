@@ -12,8 +12,9 @@ import {
   openFilePicker,
   FileSelectionType
 } from "@decky/api"
-import { FaDownload, FaFolderOpen } from "react-icons/fa";
+import { FaDownload, FaFolderOpen, FaTerminal } from "react-icons/fa";
 import { useState, useEffect } from "react";
+import SidebarTerminal from "./components/Terminal";
 
 const CONSOLE_OPTIONS = [
   { data: "gba", label: "Game Boy Advance" },
@@ -59,6 +60,7 @@ function Content() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [showTerminal, setShowTerminal] = useState<boolean>(false);
 
   // Load ROM list on mount
   useEffect(() => {
@@ -226,6 +228,22 @@ function Content() {
               </PanelSectionRow>
             )}
           </div>
+        )}
+      </PanelSection>
+
+      <PanelSection title="Terminal">
+        <PanelSectionRow>
+          <ButtonItem
+            layout="below"
+            onClick={() => setShowTerminal(!showTerminal)}
+          >
+            {showTerminal ? 'Hide Terminal' : 'Show Terminal'}
+          </ButtonItem>
+        </PanelSectionRow>
+        {showTerminal && (
+          <PanelSectionRow>
+            <SidebarTerminal height="400px" />
+          </PanelSectionRow>
         )}
       </PanelSection>
     </>

@@ -30,7 +30,8 @@
       "Bash(git branch:*)",
       "Bash(find:*)",
       "Bash(grep:*)",
-      "Bash(git submodule add:*)"
+      "Bash(git submodule add:*)",
+      "Bash(git clone:*)"
     ]
   }
 }
